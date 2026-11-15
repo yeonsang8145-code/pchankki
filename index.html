@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오늘한끼냉동 - PC방·사업자 B2B 식자재 스토어</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyApTZXjW03-8Z2AMh8uOksT7LzM-hwX39I",
+        authDomain: "oneul-hankki.firebaseapp.com",
+        databaseURL: "https://oneul-hankki-default-rtdb.firebaseio.com",
+        projectId: "oneul-hankki",
+        storageBucket: "oneul-hankki.firebasestorage.app",
+        messagingSenderId: "512249280108",
+        appId: "1:512249280108:web:8ba0d79e819c7ec43c0a49"
+      };
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+
+      function sanitizeHTML(str) {
+          if (!str) return '';
+          return String(str).replace(/[&<>"']/g, function(m) {
+              return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+          });
+      }
+    </script>
+</head>
+<body class="text-slate-800 antialiased pb-28">
+
+    <div class="bg-indigo-950 text-indigo-200 text-[11px] py-1.5 px-4 border-b border-indigo-900">
+        <div class="max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            <span>🚚 <strong>PC방·업소용 대량 납품 전문</strong> | 평일 오후 3시 이전 입금 시 당일 냉동탑차/택배 출고 (5만원 이상 무료배송)</span>
+            <span class="font-semibold text-amber-300">📞 B2B 대량견적·납품문의: 010-5426-8145</span>
+        </div>
+    </div>
+
+    <header class="bg-slate-900 text-white py-3.5 px-4 md:px-6 shadow-md sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center space-x-2.5 cursor-pointer" onclick="location.href='index.html'">
+                <span class="text-2xl">🥩</span>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <h1 class="text-base font-extrabold tracking-tight">오늘한끼냉동</h1>
+                        <span class="text-[10px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.5 rounded">B2B 업소용</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 hidden sm:block">PC방 · 휴게소 · 주점 · 캠핑 식자재 직배송</p>
+                </div>
+            </div>
+            <div class="flex items-center flex-wrap gap-1.5 text-xs" id="auth_header_area"></div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto p-4 md:p-6 space-y-5">
+        <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">PC방 먹거리 원스톱 발주</span>
+                    <span id="b2b_status_badge" class="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">일반단가 적용중</span>
+                </div>
+                <h2 class="text-base md:text-lg font-extrabold text-slate-900">조리시간 3분 내외! PC방 회전율 높이는 검증된 인기 먹거리</h2>
+                <p class="text-xs text-slate-500">아래 표에서 필요한 품목의 수량을 한 번에 입력한 뒤 <strong>[선택 품목 일괄 장바구니 담기]</strong>를 눌러 빠르게 발주하세요.</p>
+            </div>
+            <div class="flex gap-2 w-full md:w-auto flex-shrink-0">
+                <button onclick="openBizVerifyModal()" class="flex-1 md:flex-none bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-sm border border-slate-700">
+                    🏢 사업자 인증 (도매가 적용)
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                <div id="category_tab_bar" class="flex flex-wrap gap-1.5"></div>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="relative flex-1 min-w-[200px]">
+                    <input type="text" id="product_search_input" oninput="renderProducts()" placeholder="품목명 검색 (예: 볶음밥, 만두, 닭발, 쥐포...)" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="bg-slate-100 p-1 rounded-xl flex text-xs font-bold border border-slate-200">
+                        <button id="btn_view_table" onclick="switchViewMode('table')" class="px-2.5 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition">📋 빠른발주(표)</button>
+                        <button id="btn_view_grid" onclick="switchViewMode('grid')" class="px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 transition">🖼️ 카드보기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="bulk_action_bar" class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="text-xs text-indigo-900">
+                총 <strong id="product_count_badge" class="text-indigo-700">0</strong>개 품목 | 수량을 입력 후 우측 버튼을 누르면 한 번에 담깁니다.
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="resetBulkQuantities()" class="text-xs bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 font-semibold px-3 py-2 rounded-lg transition">수량 초기화</button>
+                <button onclick="addBulkSelectedToCart()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg shadow transition">🛒 입력 수량 일괄 장바구니 담기</button>
+            </div>
+        </div>
+
+        <div id="store_product_container"></div>
+    </main>
+
+    <div class="fixed bottom-0 inset-x-0 bg-slate-900/95 backdrop-blur text-white border-t border-slate-800 py-3 px-4 z-40 shadow-2xl">
+        <div class="max-w-5xl mx-auto flex justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="text-xs">
+                    <span class="text-slate-400">현재 장바구니:</span>
+                    <strong id="bottom_cart_count" class="text-amber-400 text-sm ml-1">0개 품목</strong>
+                    <span class="mx-2 text-slate-600">|</span>
+                    <span class="text-slate-400">합계:</span>
+                    <strong id="bottom_cart_total" class="text-emerald-400 text-base ml-1">0원</strong>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openCartModal()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-700 transition">장바구니 확인</button>
+                <button onclick="proceedToOrderFromCart()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition">바로 발주(주문서) →</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="biz_verify_modal" class="fixed inset-0 bg-slate-900/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-base text-slate-900">🏢 PC방 · 사업자 인증</h3>
+                <button onclick="closeBizVerifyModal()" class="text-slate-400 font-bold">✕</button>
+            </div>
+            <p class="text-xs text-slate-500 leading-relaxed">상호명과 사업자등록번호(10자리)를 등록하시면 <strong>B2B 사업자 전용 우대 단가(전 품목 5% 추가 할인)</strong> 및 세금계산서 발급 대상자로 자동 전환됩니다.</p>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">상호명 (매장명)</label>
+                    <input type="text" id="biz_store_name" placeholder="예: 연상 PC방" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">사업자등록번호 (숫자 10자리)</label>
+                    <input type="text" id="biz_reg_number" maxlength="12" placeholder="예: 123-45-67890" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3">
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="submitBizVerify()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs">사업자 인증 및 도매가 적용</button>
+                <button onclick="closeBizVerifyModal()" class="bg-slate-200 text-slate-700 font-semibold px-4 py-3 rounded-xl text-xs">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="cart_modal" class="fixed inset-0 bg-slate-900/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-base text-slate-900">🛒 발주(장바구니) 내역</h3>
+                <button onclick="closeCartModal()" class="text-slate-400 font-bold hover:text-slate-600">✕</button>
+            </div>
+            <div id="cart_modal_list" class="space-y-2 max-h-72 overflow-y-auto divide-y divide-slate-100"></div>
+            <div class="border-t pt-3 space-y-1.5">
+                <div class="flex justify-between items-center font-bold text-sm">
+                    <span>총 상품 금액</span>
+                    <span id="cart_modal_total" class="text-indigo-600 text-base">0원</span>
+                </div>
+                <p class="text-[11px] text-slate-400">* 5만원 이상 무료배송 / 미만 시 배송비 3,000원 자동 합산</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2">
+                <button onclick="closeCartModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-xs">품목 더 담기</button>
+                <button onclick="proceedToOrderFromCart()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs">주문서 작성하기 🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="product_detail_modal" class="fixed inset-0 bg-slate-900/70 z-50 hidden flex items-center justify-center p-3 md:p-6 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col">
+            <div class="sticky top-0 bg-white/90 backdrop-blur border-b border-slate-100 p-4 px-6 flex justify-between items-center z-10">
+                <button onclick="closeProductDetailModal()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-bold">⬅️ 목록으로</button>
+                <button onclick="closeProductDetailModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold">✕</button>
+            </div>
+            <div class="p-6 space-y-4 flex-1">
+                <div class="flex items-center gap-2">
+                    <span id="detail_category_badge" class="text-[11px] bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold">냉동식품</span>
+                    <span id="detail_storage_badge" class="text-[11px] bg-sky-50 text-sky-700 px-2.5 py-0.5 rounded-full font-bold">🧊 냉동보관</span>
+                </div>
+                <h3 id="detail_name" class="text-lg md:text-xl font-extrabold text-slate-900"></h3>
+                <div id="detail_img_box" class="w-full h-72 bg-slate-100 rounded-2xl flex items-center justify-center text-6xl border border-slate-200 overflow-hidden"></div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+                    <p id="detail_desc" class="text-xs md:text-sm text-slate-600 leading-relaxed"></p>
+                    <div class="pt-3 border-t border-slate-200 flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500">공급 단가</span>
+                        <span id="detail_price" class="text-xl font-extrabold text-emerald-600">0원</span>
+                    </div>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-700">발주 수량 선택</span>
+                        <div class="flex items-center space-x-2 bg-white border border-slate-300 rounded-xl px-2 py-1">
+                            <button onclick="adjustQuantity(-1)" class="w-7 h-7 text-slate-600 font-bold">-</button>
+                            <span id="order_quantity" class="w-8 text-center text-sm font-bold">1</span>
+                            <button onclick="adjustQuantity(1)" class="w-7 h-7 text-slate-600 font-bold">+</button>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-200">
+                        <span class="text-xs font-bold text-slate-600">총 발주 금액</span>
+                        <span id="total_price_text" class="text-lg font-extrabold text-slate-900">0원</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                    <button onclick="addCurrentProductToCart()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 rounded-2xl text-xs">🛒 장바구니 담기</button>
+                    <button onclick="proceedToCheckoutFromDetail()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-2xl text-xs">🚀 이 품목 바로 주문</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="check_password_modal" class="fixed inset-0 bg-slate-900/60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-base text-slate-900">📦 주문 조회</h3>
+                <button onclick="closeCheckPasswordModal()" class="text-slate-400 font-bold">✕</button>
+            </div>
+            <p class="text-xs text-slate-500">주문 시 입력하신 <strong>주문자(매장) 성함</strong>과 <strong>비밀번호 4자리</strong>를 입력해 주세요.</p>
+            <div class="space-y-3">
+                <input type="text" id="input_check_name" placeholder="예: 홍길동 또는 OO PC방" class="w-full text-sm bg-slate-50 border rounded-xl p-3">
+                <input type="password" id="input_check_pw" placeholder="비밀번호 4자리 또는 연락처" class="w-full text-center text-sm bg-slate-50 border rounded-xl p-3">
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button onclick="verifyAndOrderOrders()" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl text-sm">조회하기</button>
+                <button onclick="closeCheckPasswordModal()" class="bg-slate-200 text-slate-700 font-semibold px-4 py-3 rounded-xl text-sm">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let storeProductsCache = [];
+        let currentCategory = '전체보기';
+        let currentViewMode = 'table';
+        let currentSelectedProduct = null;
+        let currentQuantity = 1;
+
+        const b2bCategories = [
+            "전체보기", "볶음밥·덮밥류", "만두·튀김·치킨", "막창·닭발·안주류", "국·탕·찌개·떡볶이", "건어물·스낵류"
+        ];
+
+        const sampleB2BProducts = [
+            { id: 'b2b_1', name: '[업소용] 직화 김치볶음밥 (300g × 10팩)', category: '볶음밥·덮밥류', price: 24000, unitCount: 10, storageType: '🧊냉동', badge: 'PC방 1위 🔥', img: '🍳', photos: ['https://images.unsplash.com/photo-1512058564366-18510be2db19?w=600&auto=format&fit=crop&q=80'], desc: '전자레인지 3분 30초 조리! 고슬고슬한 불향 김치볶음밥 10인분 박스' },
+            { id: 'b2b_2', name: '[업소용] 육즙가득 고기왕만두 (1.4kg × 2봉)', category: '만두·튀김·치킨', price: 18500, unitCount: 40, storageType: '🧊냉동', badge: '인기상품 🔥', img: '🥟', photos: ['https://images.unsplash.com/photo-1541529086526-db283c563270?w=600&auto=format&fit=crop&q=80'], desc: '찜기·에어프라이어·튀김기 모두 OK! 1개당 35g 큼직한 업소용 왕만두' },
+            { id: 'b2b_3', name: '[야간인기] 직화 숯불 무뼈닭발 (200g × 5팩)', category: '막창·닭발·안주류', price: 27500, unitCount: 5, storageType: '🧊냉동', badge: '재주문율 1위 ⚡', img: '🔥', photos: ['https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=600&auto=format&fit=crop&q=80'], desc: '야간 시간대 PC방 주문 1등 메뉴! 매콤한 숯불향 무뼈닭발 소포장' },
+            { id: 'b2b_4', name: '[간식] 통통 오징어 버터구이 슬라이스 (500g)', category: '건어물·스낵류', price: 15000, unitCount: 5, storageType: '🧊냉동', badge: '상시판매 📦', img: '🦑', photos: [], desc: '맥주·음료 세트 구성에 최적화된 고소한 버터구이 오징어' }
+        ];
+
+        function getBizInfo() {
+            try { return JSON.parse(localStorage.getItem('store_biz_info') || 'null'); } catch (e) { return null; }
+        }
+        function getEffectivePrice(basePrice) {
+            const biz = getBizInfo();
+            const raw = Number(basePrice) || 0;
+            return biz ? Math.floor(raw * 0.95 / 10) * 10 : raw;
+        }
+
+        function updateHeaderAndBizStatus() {
+            const biz = getBizInfo();
+            const badgeEl = document.getElementById('b2b_status_badge');
+            if (biz && badgeEl) {
+                badgeEl.innerText = `✅ [${biz.storeName}] 사업자 도매가(5%↓) 적용중`;
+                badgeEl.className = 'text-xs font-extrabold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300';
+            }
+            const authArea = document.getElementById('auth_header_area');
+            authArea.innerHTML = `
+                <button onclick="openCartModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1 shadow">
+                    🛒 장바구니 <span id="cart_badge" class="bg-white text-indigo-900 font-black px-1.5 py-0.2 rounded-full text-[10px]">0</span>
+                </button>
+                <button onclick="openCheckMyOrderModal()" class="hover:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-700 transition">📦 주문조회</button>
+                <button onclick="location.href='orders.html'" class="hover:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-700 transition">📊 누적조회</button>
+                <button onclick="location.href='admin.html'" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-700 transition">⚙️ 관리자</button>
+            `;
+            updateCartBadge();
+        }
+
+        function renderCategoryTabs() {
+            const bar = document.getElementById('category_tab_bar');
+            bar.innerHTML = b2bCategories.map(cat => {
+                const active = cat === currentCategory;
+                const style = active ? 'bg-indigo-600 text-white font-bold shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold';
+                return `<button onclick="selectCategory('${cat}')" class="px-3 py-1.5 rounded-xl text-xs transition ${style}">${cat}</button>`;
+            }).join('');
+        }
+        function selectCategory(cat) { currentCategory = cat; renderCategoryTabs(); renderProducts(); }
+
+        function switchViewMode(mode) {
+            currentViewMode = mode;
+            const btnTable = document.getElementById('btn_view_table');
+            const btnGrid = document.getElementById('btn_view_grid');
+            const bulkBar = document.getElementById('bulk_action_bar');
+            if (mode === 'table') {
+                btnTable.className = 'px-2.5 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition';
+                btnGrid.className = 'px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 transition';
+                bulkBar.classList.remove('hidden');
+            } else {
+                btnGrid.className = 'px-2.5 py-1.5 rounded-lg bg-white text-indigo-700 shadow-sm transition';
+                btnTable.className = 'px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 transition';
+                bulkBar.classList.add('hidden');
+            }
+            renderProducts();
+        }
+
+        function loadStoreProductsFromFirebase() {
+            db.ref('products').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    storeProductsCache = Array.isArray(data) ? data.filter(Boolean).map((item, idx) => ({ id: item.id || 'prod_' + idx, ...item })) : Object.keys(data).map(k => ({ id: k, ...data[k] }));
+                } else {
+                    storeProductsCache = sampleB2BProducts;
+                }
+                renderProducts();
+            });
+        }
+
+        function getFilteredProducts() {
+            const keyword = (document.getElementById('product_search_input').value || '').trim().toLowerCase();
+            return storeProductsCache.filter(p => {
+                const matchCat = currentCategory === '전체보기' || (p.category && p.category.includes(currentCategory.split('·')[0]));
+                const matchKey = !keyword || (p.name && p.name.toLowerCase().includes(keyword)) || (p.desc && p.desc.toLowerCase().includes(keyword));
+                return matchCat && matchKey;
+            });
+        }
+
+        function renderProducts() {
+            const container = document.getElementById('store_product_container');
+            const filtered = getFilteredProducts();
+            document.getElementById('product_count_badge').innerText = filtered.length;
+            if (!filtered.length) {
+                container.innerHTML = `<div class="bg-white rounded-2xl p-12 text-center text-xs text-slate-400 border border-slate-200">조건에 맞는 상품이 없습니다.</div>`;
+                return;
+            }
+            const isBiz = !!getBizInfo();
+            if (currentViewMode === 'table') {
+                let rowsHtml = filtered.map(p => {
+                    const effectivePrice = getEffectivePrice(p.price);
+                    const unitCount = Number(p.unitCount) || 1;
+                    const perUnitCost = unitCount > 1 ? Math.round(effectivePrice / unitCount) : null;
+                    const photoUrl = (p.photos && p.photos[0]) ? p.photos[0] : null;
+                    const thumb = photoUrl ? `<img src="${sanitizeHTML(photoUrl)}" class="w-12 h-12 rounded-lg object-cover border border-slate-200">` : `<div class="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center text-2xl">${p.img || '🥩'}</div>`;
+                    return `
+                        <tr class="hover:bg-indigo-50/40 transition border-b border-slate-100">
+                            <td class="p-3">
+                                <div class="flex items-center gap-3 cursor-pointer" onclick="openProductDetail('${sanitizeHTML(p.id)}')">
+                                    <div class="flex-shrink-0">${thumb}</div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="text-[10px] font-bold bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded">${sanitizeHTML(p.storageType || '🧊냉동')}</span>
+                                            ${p.badge ? `<span class="text-[10px] font-bold bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">${sanitizeHTML(p.badge)}</span>` : ''}
+                                        </div>
+                                        <div class="font-bold text-slate-900 text-xs md:text-sm mt-1 hover:text-indigo-600 transition">${sanitizeHTML(p.name)}</div>
+                                        <div class="text-[11px] text-slate-400 truncate max-w-xs md:max-w-md">${sanitizeHTML(p.desc || '')}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-3 text-right whitespace-nowrap">
+                                ${isBiz ? `<div class="text-[11px] text-slate-400 line-through">${Number(p.price).toLocaleString()}원</div>` : ''}
+                                <div class="font-extrabold text-emerald-600 text-sm">${effectivePrice.toLocaleString()}원</div>
+                                ${perUnitCost ? `<div class="text-[10px] text-indigo-600 font-semibold">(개당 약 ${perUnitCost.toLocaleString()}원)</div>` : ''}
+                            </td>
+                            <td class="p-3 text-center whitespace-nowrap">
+                                <div class="inline-flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden">
+                                    <button type="button" onclick="stepBulkQty('${sanitizeHTML(p.id)}', -1)" class="px-2 py-1 text-slate-600 hover:bg-slate-100 font-bold text-xs">-</button>
+                                    <input type="number" id="bulk_qty_${sanitizeHTML(p.id)}" data-prod-id="${sanitizeHTML(p.id)}" value="0" min="0" max="999" class="bulk-qty-input w-11 text-center text-xs font-extrabold text-slate-900 focus:outline-none">
+                                    <button type="button" onclick="stepBulkQty('${sanitizeHTML(p.id)}', 1)" class="px-2 py-1 text-slate-600 hover:bg-slate-100 font-bold text-xs">+</button>
+                                </div>
+                            </td>
+                            <td class="p-3 text-center whitespace-nowrap hidden sm:table-cell">
+                                <button onclick="quickAddSingleItem('${sanitizeHTML(p.id)}')" class="text-xs bg-slate-800 hover:bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-lg transition">1개 담기</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase">
+                                    <th class="p-3">품목명 / 규격 정보 (클릭 시 상세)</th>
+                                    <th class="p-3 text-right">공급단가 (원가환산)</th>
+                                    <th class="p-3 text-center">발주 수량</th>
+                                    <th class="p-3 text-center hidden sm:table-cell">빠른담기</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rowsHtml}</tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                let cardsHtml = filtered.map(p => {
+                    const effectivePrice = getEffectivePrice(p.price);
+                    const photoUrl = (p.photos && p.photos[0]) ? p.photos[0] : null;
+                    const thumb = photoUrl ? `<img src="${sanitizeHTML(photoUrl)}" class="w-full h-full object-cover">` : (p.img || '🥩');
+                    return `
+                        <div onclick="openProductDetail('${sanitizeHTML(p.id)}')" class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between space-y-3">
+                            <div class="flex space-x-3.5">
+                                <div class="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden border border-slate-100">${thumb}</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-1 mb-1">
+                                        <span class="text-[10px] bg-sky-50 text-sky-700 px-2 py-0.5 rounded-full font-bold">${sanitizeHTML(p.storageType || '🧊냉동')}</span>
+                                        <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold">${sanitizeHTML(p.badge || '인기')}</span>
+                                    </div>
+                                    <h4 class="font-bold text-slate-900 text-sm truncate">${sanitizeHTML(p.name)}</h4>
+                                    <p class="text-xs text-slate-500 mt-0.5 line-clamp-1">${sanitizeHTML(p.desc || '')}</p>
+                                    <div class="mt-2 flex items-baseline gap-1.5">
+                                        <span class="font-extrabold text-emerald-600 text-base">${effectivePrice.toLocaleString()}원</span>
+                                        ${isBiz ? `<span class="text-[11px] text-slate-400 line-through">${Number(p.price).toLocaleString()}원</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                container.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${cardsHtml}</div>`;
+            }
+        }
+
+        function stepBulkQty(prodId, delta) {
+            const input = document.getElementById('bulk_qty_' + prodId);
+            if (!input) return;
+            input.value = Math.max(0, (parseInt(input.value) || 0) + delta);
+        }
+        function resetBulkQuantities() { document.querySelectorAll('.bulk-qty-input').forEach(el => el.value = 0); }
+
+        function addBulkSelectedToCart() {
+            const inputs = document.querySelectorAll('.bulk-qty-input');
+            let addedCount = 0;
+            let cart = JSON.parse(localStorage.getItem('store_cart') || '[]');
+            inputs.forEach(input => {
+                const qty = parseInt(input.value) || 0;
+                if (qty > 0) {
+                    const prodId = input.getAttribute('data-prod-id');
+                    const prod = storeProductsCache.find(p => p.id === prodId);
+                    if (prod) {
+                        const unitPrice = getEffectivePrice(prod.price);
+                        const photoUrl = (prod.photos && prod.photos[0]) ? prod.photos[0] : null;
+                        const existIdx = cart.findIndex(c => c.name === prod.name);
+                        if (existIdx > -1) {
+                            cart[existIdx].qty += qty;
+                            cart[existIdx].price = unitPrice;
+                        } else {
+                            cart.push({ name: prod.name, price: unitPrice, qty: qty, photo: photoUrl, img: prod.img || '🥩' });
+                        }
+                        addedCount++;
+                        input.value = 0;
+                    }
+                }
+            });
+            if (addedCount === 0) { alert('발주할 품목의 수량을 1개 이상 입력해 주세요.'); return; }
+            localStorage.setItem('store_cart', JSON.stringify(cart));
+            updateCartBadge();
+            alert(`선택하신 ${addedCount}개 품목이 장바구니에 일괄 담겼습니다!`);
+        }
+
+        function quickAddSingleItem(prodId) {
+            const prod = storeProductsCache.find(p => p.id === prodId);
+            if (!prod) return;
+            let cart = JSON.parse(localStorage.getItem('store_cart') || '[]');
+            const unitPrice = getEffectivePrice(prod.price);
+            const photoUrl = (prod.photos && prod.photos[0]) ? prod.photos[0] : null;
+            const existIdx = cart.findIndex(c => c.name === prod.name);
+            if (existIdx > -1) {
+                cart[existIdx].qty += 1;
+                cart[existIdx].price = unitPrice;
+            } else {
+                cart.push({ name: prod.name, price: unitPrice, qty: 1, photo: photoUrl, img: prod.img || '🥩' });
+            }
+            localStorage.setItem('store_cart', JSON.stringify(cart));
+            updateCartBadge();
+            alert('장바구니에 1개 담겼습니다.');
+        }
+
+        function updateCartBadge() {
+            const cart = JSON.parse(localStorage.getItem('store_cart') || '[]');
+            const totalQty = cart.reduce((sum, item) => sum + (Number(item.qty) || 1), 0);
+            const totalPrice = cart.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.qty) || 1)), 0);
+            if (document.getElementById('cart_badge')) document.getElementById('cart_badge').innerText = totalQty;
+            if (document.getElementById('bottom_cart_count')) document.getElementById('bottom_cart_count').innerText = `${cart.length}종 (${totalQty}개)`;
+            if (document.getElementById('bottom_cart_total')) document.getElementById('bottom_cart_total').innerText = `${totalPrice.toLocaleString()}원`;
+        }
+
+        function openCartModal() {
+            const cart = JSON.parse(localStorage.getItem('store_cart') || '[]');
+            const listContainer = document.getElementById('cart_modal_list');
+            if(!cart.length) {
+                listContainer.innerHTML = `<p class="text-center text-xs text-slate-400 py-8">장바구니가 비어 있습니다.</p>`;
+                document.getElementById('cart_modal_total').innerText = '0원';
+            } else {
+                let total = 0;
+                listContainer.innerHTML = cart.map((item, idx) => {
+                    const itemSum = (Number(item.price) || 0) * (Number(item.qty) || 1);
+                    total += itemSum;
+                    let imgTag = item.photo ? `<img src="${sanitizeHTML(item.photo)}" class="w-full h-full object-cover">` : `<span class="text-xl">${sanitizeHTML(item.img || '🥩')}</span>`;
+                    return `
+                        <div class="flex items-center space-x-3 py-2.5 text-xs">
+                            <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 border border-slate-200">${imgTag}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold text-slate-800 truncate">${sanitizeHTML(item.name)}</div>
+                                <div class="text-slate-400 mt-0.5">${Number(item.price).toLocaleString()}원 × ${item.qty}개</div>
+                            </div>
+                            <div class="flex items-center space-x-2 flex-shrink-0">
+                                <span class="font-extrabold text-slate-900">${itemSum.toLocaleString()}원</span>
+                                <button onclick="removeFromCart(${idx})" class="text-red-400 hover:text-red-600 font-bold text-sm px-1">✕</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                document.getElementById('cart_modal_total').innerText = total.toLocaleString() + '원';
+            }
+            document.getElementById('cart_modal').classList.remove('hidden');
+        }
+        function closeCartModal() { document.getElementById('cart_modal').classList.add('hidden'); }
+
+        function removeFromCart(index) {
+            let cart = JSON.parse(localStorage.getItem('store_cart') || '[]');
+            cart.splice(index, 1);
+            localStorage.setItem('store_cart', JSON.stringify(cart));
+            updateCartBadge();
+            openCartModal();
+        }
+
+        function proceedToOrderFromCart() {
+            const cart = JSON.parse(localStorage.getItem('store_cart') || '[]');
+            if(!cart.length) { alert('장바구니에 담긴 품목이 없습니다.'); return; }
+            location.href = 'order.html';
+        }
+
+        function openProductDetail(prodId) {
+            const product = storeProductsCache.find(p => p.id === prodId);
+            if (!product) return;
+            currentSelectedProduct = product;
+            currentQuantity = 1;
+            document.getElementById('order_quantity').innerText = currentQuantity;
+            document.getElementById('detail_name').innerText = product.name;
+            document.getElementById('detail_desc').innerText = product.desc || 'PC방 및 업소 납품 전용 신선 냉동식품입니다.';
+            document.getElementById('detail_category_badge').innerText = product.category || '냉동식품';
+            document.getElementById('detail_storage_badge').innerText = product.storageType || '🧊 냉동보관';
+            document.getElementById('detail_price').innerText = getEffectivePrice(product.price).toLocaleString() + '원';
+            const imgBox = document.getElementById('detail_img_box');
+            if (product.photos && product.photos[0]) {
+                imgBox.innerHTML = `<img src="${sanitizeHTML(product.photos[0])}" class="w-full h-full object-contain">`;
+            } else {
+                imgBox.innerHTML = product.img || '🥩';
+            }
+            updateTotalPrice();
+            document.getElementById('product_detail_modal').classList.remove('hidden');
+        }
+
+        function adjustQuantity(amt) {
+            currentQuantity = Math.max(1, currentQuantity + amt);
+            document.getElementById('order_quantity').innerText = currentQuantity;
+            updateTotalPrice();
+        }
+        function updateTotalPrice() {
+            if(!currentSelectedProduct) return;
+            document.getElementById('total_price_text').innerText = (getEffectivePrice(currentSelectedProduct.price) * currentQuantity).toLocaleString() + '원';
+        }
+        function closeProductDetailModal() { document.getElementById('product_detail_modal').classList.add('hidden'); }
+
+        function addCurrentProductToCart() {
+            if (!currentSelectedProduct) return;
+            let cart = JSON.parse(localStorage.getItem('store_cart') || '[]');
+            const unitPrice = getEffectivePrice(currentSelectedProduct.price);
+            const photoUrl = (currentSelectedProduct.photos && currentSelectedProduct.photos[0]) ? currentSelectedProduct.photos[0] : null;
+            const existingIndex = cart.findIndex(item => item.name === currentSelectedProduct.name);
+            if (existingIndex > -1) {
+                cart[existingIndex].qty += currentQuantity;
+                cart[existingIndex].price = unitPrice;
+            } else {
+                cart.push({ name: currentSelectedProduct.name, price: unitPrice, qty: currentQuantity, photo: photoUrl, img: currentSelectedProduct.img || '🥩' });
+            }
+            localStorage.setItem('store_cart', JSON.stringify(cart));
+            updateCartBadge();
+            alert('장바구니에 담았습니다.');
+            closeProductDetailModal();
+        }
+
+        function proceedToCheckoutFromDetail() {
+            if (!currentSelectedProduct) return;
+            const unitPrice = getEffectivePrice(currentSelectedProduct.price);
+            const photoUrl = (currentSelectedProduct.photos && currentSelectedProduct.photos[0]) ? currentSelectedProduct.photos[0] : null;
+            const singleItem = [{ name: currentSelectedProduct.name, price: unitPrice, qty: currentQuantity, photo: photoUrl, img: currentSelectedProduct.img || '🥩' }];
+            localStorage.setItem('store_cart', JSON.stringify(singleItem));
+            location.href = 'order.html';
+        }
+
+        function openBizVerifyModal() {
+            const biz = getBizInfo();
+            if (biz) {
+                document.getElementById('biz_store_name').value = biz.storeName || '';
+                document.getElementById('biz_reg_number').value = biz.regNumber || '';
+            }
+            document.getElementById('biz_verify_modal').classList.remove('hidden');
+        }
+        function closeBizVerifyModal() { document.getElementById('biz_verify_modal').classList.add('hidden'); }
+
+        function submitBizVerify() {
+            const storeName = document.getElementById('biz_store_name').value.trim();
+            const regNumber = document.getElementById('biz_reg_number').value.replace(/[^0-9]/g, '');
+            if (!storeName) { alert('상호명(매장명)을 입력해 주세요.'); return; }
+            if (regNumber.length !== 10) { alert('사업자등록번호 숫자 10자리를 정확히 입력해 주세요.'); return; }
+            localStorage.setItem('store_biz_info', JSON.stringify({ storeName, regNumber }));
+            alert(`[${storeName}] 사업자 인증이 완료되었습니다.\n전 품목 B2B 사업자 우대 단가(5% 할인)가 즉시 적용됩니다.`);
+            closeBizVerifyModal();
+            updateHeaderAndBizStatus();
+            renderProducts();
+        }
+
+        function openCheckMyOrderModal() { document.getElementById('check_password_modal').classList.remove('hidden'); }
+        function closeCheckPasswordModal() { document.getElementById('check_password_modal').classList.add('hidden'); }
+
+        function verifyAndOrderOrders() {
+            const inputName = (document.getElementById('input_check_name').value || '').trim();
+            const inputKey = (document.getElementById('input_check_pw').value || '').trim();
+            if (!inputName || !inputKey) { alert('성함과 비밀번호(연락처)를 입력해 주세요.'); return; }
+            let myOrders = JSON.parse(localStorage.getItem('store_orders') || '[]');
+            const matched = myOrders.find(o => o.name === inputName && (o.password === inputKey || o.orderPw === inputKey || o.phone === inputKey));
+            if (matched) {
+                alert(`[발주 조회 성공]\n주문번호: ${sanitizeHTML(matched.orderId)}\n품목: ${sanitizeHTML(matched.product)}\n결제금액: ${Number(matched.price).toLocaleString()}원\n진행상태: ${sanitizeHTML(matched.status)}`);
+                closeCheckPasswordModal();
+            } else {
+                alert('일치하는 주문 내역이 없습니다.');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updateHeaderAndBizStatus();
+            renderCategoryTabs();
+            loadStoreProductsFromFirebase();
+        });
+    </script>
+</body>
+</html>
