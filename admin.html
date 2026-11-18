@@ -37,7 +37,7 @@
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
             return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
-        const TARGET_HASH = "85289fb71b1db3df2d63f25b297b8ea7a7db326b42b6a71e16450f3b06e40d6c";
+        const TARGET_HASH = "pchankki1234!!";
 
         async function checkAdminAuth() {
             if (sessionStorage.getItem('store_admin_authed') === 'true') return;
